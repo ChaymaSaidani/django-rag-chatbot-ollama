@@ -1,3 +1,4 @@
+import pickle
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
@@ -32,17 +33,25 @@ class Document(models.Model):
         return f"{self.title} ({self.file_type})"
 
 class Embedding(models.Model):
-    """Stores text chunks and their vector embeddings"""
     document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name='embeddings')
     embedding = models.BinaryField()  
     text_chunk = models.TextField()
     chunk_index = models.IntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
 
-    class Meta:
-        ordering = ['document', 'chunk_index']
-        verbose_name = "Document Embedding"
-        verbose_name_plural = "Document Embeddings"
+    def clean(self):
+        try:
+           
+            vector = pickle.loads(self.embedding)
+            expected_dim = 384  
+            if not isinstance(vector, list) or len(vector) != expected_dim:
+                raise ValidationError(f"Embedding must be a list of {expected_dim} floats.")
+        except Exception:
+            raise ValidationError("Invalid embedding format. Must be a pickled list of floats.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()  
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"Embedding {self.chunk_index} for {self.document.title}"
