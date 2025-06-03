@@ -1,0 +1,242 @@
+<div class="chat-container">
+  <h3 class="mb-4 text-center">🧠 Chat with Bot — <strong id="session-title">{{ session.title }}</strong></h3>
+
+  <div class="chat-box mb-4" id="chat-box">
+    {% for msg in messages %}
+      <div class="chat-message {% if msg.is_user %}user{% endif %}">
+        <div class="chat-avatar">
+          {% if msg.is_user %}Y{% else %}B{% endif %}
+        </div>
+        <div>
+          <div class="chat-bubble {% if msg.is_user %}user{% else %}bot{% endif %}">
+            {{ msg.message }}
+          </div>
+          <div class="chat-timestamp {% if msg.is_user %}text-end{% endif %}">
+            {{ msg.created_at|date:"Y-m-d H:i" }}
+          </div>
+        </div>
+      </div>
+    {% empty %}
+      <p class="text-muted text-center">No messages yet. Start the conversation!</p>
+    {% endfor %}
+  </div>
+
+  <form id="chat-form" class="chat-form" autocomplete="off">
+    {% csrf_token %}
+    <div class="input-group">
+      <input type="text" id="message-input" name="message" class="form-control" placeholder="Type your message..." required>
+      <button type="submit" class="btn btn-success" id="send-btn">
+       send  
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const chatBox = document.getElementById('chat-box');
+    const chatForm = document.getElementById('chat-form');
+    const messageInput = document.getElementById('message-input');
+    const apiUrl = "{{ api_url }}";
+    const sendUrl = "{{ send_url }}";
+    const authToken = "{{ auth_token }}";
+
+    // Simple fetch with error handling
+    async function fetchWithAuth(url, options = {}) {
+        options.headers = {
+            ...options.headers,
+            'Authorization': `Token ${authToken}`,
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        };
+        
+        try {
+            const response = await fetch(url, options);
+            if (!response.ok) throw new Error('Network error');
+            return await response.json();
+        } catch (error) {
+            console.error('API error:', error);
+            return [];
+        }
+    }
+
+    // Load messages
+    async function loadMessages() {
+        const messages = await fetchWithAuth(apiUrl);
+        chatBox.innerHTML = messages.map(msg => `
+            <div class="chat-message ${msg.is_user ? 'user' : ''}">
+                <div class="chat-avatar">${msg.is_user ? 'Y' : 'B'}</div>
+                <div>
+                    <div class="chat-bubble ${msg.is_user ? 'user' : 'bot'}">
+                        ${msg.message}
+                    </div>
+                    <div class="chat-timestamp ${msg.is_user ? 'text-end' : ''}">
+                        ${new Date(msg.created_at).toLocaleString()}
+                    </div>
+                </div>
+            </div>
+        `).join('');
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    // Send message
+    chatForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const message = messageInput.value.trim();
+        if (!message) return;
+
+        messageInput.disabled = true;
+        chatForm.querySelector('button').disabled = true;
+
+        await fetchWithAuth(sendUrl, {
+            method: 'POST',
+            body: JSON.stringify({ message })
+        });
+
+        messageInput.value = '';
+        messageInput.disabled = false;
+        chatForm.querySelector('button').disabled = false;
+        messageInput.focus();
+        
+        // Reload messages after sending
+        await loadMessages();
+    });
+
+    // Initial load and periodic refresh
+    loadMessages();
+    setInterval(loadMessages, 3000); // Refresh every 3 seconds
+});
+</script>
+<style>
+  .chat-container {
+    max-width: 600px;
+    margin: 2rem auto;
+    background: #f8f9fa;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgb(0 0 0 / 0.1);
+    display: flex;
+    flex-direction: column;
+    height: 80vh;
+    padding: 1rem 1.5rem;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  }
+
+  .chat-container h3 {
+    font-weight: 600;
+    color: #343a40;
+  }
+
+  .chat-box {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 0.5rem 0;
+    border-top: 1px solid #dee2e6;
+    border-bottom: 1px solid #dee2e6;
+    margin-bottom: 1rem;
+  }
+
+  .chat-message {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 1rem;
+    align-items: flex-start;
+  }
+
+  .chat-message.user {
+    flex-direction: row-reverse;
+  }
+
+  .chat-avatar {
+    width: 40px;
+    height: 40px;
+    background: #6c757d;
+    color: white;
+    font-weight: 700;
+    font-size: 1.25rem;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    user-select: none;
+    flex-shrink: 0;
+  }
+
+  .chat-message.user .chat-avatar {
+    background: #198754; /* green for user */
+  }
+
+  .chat-bubble {
+    max-width: 70%;
+    padding: 0.75rem 1rem;
+    border-radius: 18px;
+    font-size: 1rem;
+    line-height: 1.3;
+    white-space: pre-wrap;
+  }
+
+  .chat-bubble.user {
+    background-color: #198754; /* green */
+    color: white;
+    border-bottom-right-radius: 4px;
+  }
+
+  .chat-bubble.bot {
+    background-color: #e9ecef; /* light gray */
+    color: #212529;
+    border-bottom-left-radius: 4px;
+  }
+
+  .chat-timestamp {
+    font-size: 0.75rem;
+    color: #6c757d;
+    margin-top: 0.25rem;
+  }
+
+  .chat-timestamp.text-end {
+    text-align: right;
+  }
+
+  .chat-form .input-group {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .chat-form input[type="text"] {
+    flex-grow: 1;
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
+    border-radius: 9999px;
+    border: 1px solid #ced4da;
+    transition: border-color 0.3s;
+  }
+
+  .chat-form input[type="text"]:focus {
+    border-color: #198754;
+    outline: none;
+    box-shadow: 0 0 5px rgba(25, 135, 84, 0.5);
+  }
+
+  .chat-form button {
+    background-color: #198754;
+    border: none;
+    border-radius: 9999px;
+    padding: 0 1.2rem;
+    color: white;
+    font-size: 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.3s;
+  }
+
+  .chat-form button:hover:not(:disabled) {
+    background-color: #146c43;
+  }
+
+  .chat-form button:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+  }
+</style>
+

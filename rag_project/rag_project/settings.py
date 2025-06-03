@@ -25,6 +25,16 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-fallback-key-for-dev-only'
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',') if os.getenv('ALLOWED_HOSTS') else []
 
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+       
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+}
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -56,7 +66,7 @@ ROOT_URLCONF = 'rag_project.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS':  [BASE_DIR / "templates"],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -141,12 +151,7 @@ if not DEBUG:
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
 ]
-
-# AI Integration
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
-EMBEDDING_MODEL = os.getenv('EMBEDDING_MODEL', 'sentence-transformers/all-MiniLM-L6-v2')
-LLM_MODEL = os.getenv('LLM_MODEL', 'gpt-3.5-turbo')
-
+API_BASE_URL = "http://localhost:8000/api"
 # FAISS Configuration
 FAISS_INDEX_PATH = os.getenv('FAISS_INDEX_PATH', str(BASE_DIR / 'faiss_indices'))
 os.makedirs(FAISS_INDEX_PATH, exist_ok=True)

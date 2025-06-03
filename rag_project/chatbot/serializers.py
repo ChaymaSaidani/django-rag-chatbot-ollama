@@ -9,7 +9,7 @@ class DocumentSerializer(serializers.ModelSerializer):
         read_only_fields = ['file_type', 'uploaded_at', 'processed']
     
     def validate_file(self, value):
-        # File validation happens in model clean()
+        
         return value
 
 class ChatSessionSerializer(serializers.ModelSerializer):
@@ -20,5 +20,6 @@ class ChatSessionSerializer(serializers.ModelSerializer):
 class ChatMessageSerializer(serializers.ModelSerializer):
     class Meta:
         model = ChatMessage
-        fields = ['id', 'session', 'message', 'is_user', 'created_at', 'references']
-        read_only_fields = ['is_user', 'created_at', 'references']
+        fields = ['id', 'message', 'is_user', 'created_at']  
+
+        read_only_fields = ['id', 'is_user', 'created_at'] 

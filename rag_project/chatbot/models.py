@@ -21,12 +21,12 @@ class Document(models.Model):
         self.file_type = ext
 
     def save(self, *args, **kwargs):
-        is_new = self.pk is None  # Est-ce un nouvel objet (pas encore en base) ?
+        is_new = self.pk is None  
         self.full_clean()
         super().save(*args, **kwargs)
 
         if is_new:
-            from .tasks import process_document  # import local pour éviter la boucle
+            from .tasks import process_document 
             process_document.delay(self.id)
     def __str__(self):
         return f"{self.title} ({self.file_type})"
@@ -34,7 +34,7 @@ class Document(models.Model):
 class Embedding(models.Model):
     """Stores text chunks and their vector embeddings"""
     document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name='embeddings')
-    embedding = models.BinaryField()  # Store serialized embeddings
+    embedding = models.BinaryField()  
     text_chunk = models.TextField()
     chunk_index = models.IntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
@@ -65,7 +65,7 @@ class ChatMessage(models.Model):
     message = models.TextField()
     is_user = models.BooleanField()
     created_at = models.DateTimeField(auto_now_add=True)
-    references = models.ManyToManyField(Embedding, blank=True)  # For cited sources
+    references = models.ManyToManyField(Embedding, blank=True)  
 
     class Meta:
         ordering = ['created_at']
