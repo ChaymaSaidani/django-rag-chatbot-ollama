@@ -5,6 +5,8 @@ import faiss
 import pickle
 from django.conf import settings
 
+from .models import ChatMessage, ChatSession, Document, Embedding
+
 from langchain_ollama import OllamaEmbeddings
 from langchain_community.llms import Ollama
 from langchain_community.document_loaders import PyPDFLoader, TextLoader, Docx2txtLoader
@@ -53,27 +55,12 @@ def process_document(self, document_id):
                 chunk_index=i
             )
 
-        # Adapt cluster count (nlist)
-        dimension = len(embeddings[0])
-        np_embeddings = np.array(embeddings).astype('float32')
-
-        n_vectors = len(np_embeddings)
-        nlist = min(100, n_vectors)  # cap at 100, but can't be > n_vectors
-        if nlist < 1:
-            nlist = 1
-
-        quantizer = faiss.IndexFlatL2(dimension)
-        index = faiss.IndexIVFFlat(quantizer, dimension, nlist, faiss.METRIC_L2)
-        index.train(np_embeddings)
-        index.add(np_embeddings)
-
-        os.makedirs(settings.FAISS_INDEX_PATH, exist_ok=True)
-        index_path = os.path.join(settings.FAISS_INDEX_PATH, f'doc_{document_id}.index')
-        faiss.write_index(index, index_path)
-
+        # We no longer save individual FAISS indices for each document
+        # since we'll build a unified index at query time
+        
         document.processed = True
         document.save()
-        return f"Processed {document.title} ({n_vectors} chunks)"
+        return f"Processed {document.title} ({len(chunks)} chunks)"
 
     except Exception as e:
         document.processed = False
@@ -91,47 +78,68 @@ def generate_chat_response(session_id, message_id):
         embeddings_model = OllamaEmbeddings(model="mistral")
         query_embedding = embeddings_model.embed_query(message.message)
 
-        indices = []
+        # Collect all embeddings for this user's documents
         embeddings_data = []
+        all_embeddings = []
 
         for doc in Document.objects.filter(owner=session.user, processed=True):
-            index_path = os.path.join(settings.FAISS_INDEX_PATH, f'doc_{doc.id}.index')
-            if os.path.exists(index_path):
-                try:
-                    idx = faiss.read_index(index_path)
-                    indices.append(idx)
-                    embeddings_data.extend([
-                        {
-                            'text': emb.text_chunk,
-                            'embedding': pickle.loads(emb.embedding),
-                            'document': doc.title
-                        }
-                        for emb in Embedding.objects.filter(document=doc)
-                    ])
-                except Exception as e:
-                    return f"Error reading index for document {doc.id}: {str(e)}"
+            for emb in Embedding.objects.filter(document=doc):
+                embedding = pickle.loads(emb.embedding)
+                all_embeddings.append(embedding)
+                embeddings_data.append({
+                    'text': emb.text_chunk,
+                    'embedding': embedding,
+                    'document': doc.title,
+                    'embedding_id': emb.id
+                })
 
-        if not indices:
+        if not all_embeddings:
             return "Please upload and process documents first."
 
-        # Merge indices (IVF only)
-        merged_index = indices[0]
-        for idx in indices[1:]:
-            try:
-                faiss.merge_into(merged_index, idx, shift_ids=True)
-            except Exception as e:
-                return f"Error merging indices: {str(e)}"
+        # Create FAISS index
+        dimension = len(all_embeddings[0])
+        np_embeddings = np.array(all_embeddings).astype('float32')
 
-        # Perform similarity search
-        D, I = merged_index.search(np.array([query_embedding]).astype('float32'), k=3)
+        n_vectors = len(np_embeddings)
+        nlist = min(100, max(1, int(n_vectors ** 0.5)))
+
+        quantizer = faiss.IndexFlatL2(dimension)
+        index = faiss.IndexIVFFlat(quantizer, dimension, nlist, faiss.METRIC_L2)
+
+        if not index.is_trained:
+            index.train(np_embeddings)
+        index.add(np_embeddings)
+
+        k = min(10, len(np_embeddings))  # Increased from 3 to 10
+        _, indices_found = index.search(np.array([query_embedding]).astype('float32'), k=k)
+
+        # Diversity filtering: include only one chunk per document
+        seen_docs = set()
+        selected_chunks = []
+        for i in indices_found[0]:
+            if i >= len(embeddings_data):
+                continue
+            doc_title = embeddings_data[i]['document']
+            if doc_title not in seen_docs:
+                selected_chunks.append(embeddings_data[i])
+                seen_docs.add(doc_title)
+            if len(selected_chunks) >= 3:  # limit to 3 diverse chunks
+                break
 
         context = "\n\n".join(
-            f"From {embeddings_data[i]['document']}:\n{embeddings_data[i]['text']}"
-            for i in I[0] if i >= 0 and i < len(embeddings_data)
+            f"From {chunk['document']}:\n{chunk['text']}"
+            for chunk in selected_chunks
         )
 
         llm = Ollama(model="mistral")
-        prompt = f"Use the following context to answer the user's question.\n\nContext:\n{context}\n\nQuestion: {message.message}"
+        prompt = f"""Use the following context to answer the user's question.
+If you don't know the answer, just say you don't know, don't try to make up an answer.
+
+Context:
+{context}
+
+Question: {message.message}"""
+
         response_text = llm.invoke(prompt)
 
         response_message = ChatMessage.objects.create(
@@ -140,16 +148,15 @@ def generate_chat_response(session_id, message_id):
             is_user=False
         )
 
-        for i in I[0]:
-            if i >= 0 and i < len(embeddings_data):
+        for chunk in selected_chunks:
+            try:
                 response_message.references.add(
-                    Embedding.objects.get(
-                        text_chunk=embeddings_data[i]['text'],
-                        document__title=embeddings_data[i]['document']
-                    )
+                    Embedding.objects.get(id=chunk['embedding_id'])
                 )
+            except Embedding.DoesNotExist:
+                continue
 
         return response_message.message
 
     except Exception as e:
-        return f"Error: {str(e)}"
+        return f"Error generating response: {str(e)}"
