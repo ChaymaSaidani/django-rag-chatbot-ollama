@@ -11,36 +11,36 @@ Welcome! This guide will help you get the **Django RAG Chatbot** project up and 
 
 rag_project/
 │
-├── chatbot/                # Django app for chatbot logic
-│   ├── __init__.py
-│   ├── admin.py            # Admin site configuration
-│   ├── apps.py
-│   ├── models.py           # Database models for documents, chats, etc.
-│   ├── schema.py           # GraphQL schema definitions
-│   ├── serializers.py      # DRF serializers for API endpoints
-│   ├── tasks.py            # Celery background tasks (e.g. RAG processing)
-│   ├── views.py            # Django REST API views
-│   └── __pycache__/
+├── chatbot/ # Django app for chatbot logic
+│ ├── init.py
+│ ├── admin.py # Admin site configuration
+│ ├── apps.py
+│ ├── models.py # Database models
+│ ├── schema.py # GraphQL schema
+│ ├── serializers.py # DRF serializers
+│ ├── tasks.py # Celery tasks (RAG processing)
+│ ├── views.py # Django REST API views
+│ └── pycache/
 │
-├── faiss_indices/          # FAISS vector index directory
-│   └── doc_*.index         # Auto-generated FAISS index files
+├── faiss_indices/ # FAISS vector index directory
+│ └── doc_*.index # Auto-generated index files
 │
-├── rag_project/            # Django project configuration
-│   ├── __init__.py
-│   ├── celery.py           # Celery app setup
-│   ├── settings.py         # Project settings (OpenAI, Redis, FAISS, etc.)
-│   └── urls.py             # URL routing
+├── rag_project/ # Django project config
+│ ├── init.py
+│ ├── celery.py # Celery app setup
+│ ├── settings.py # Project settings
+│ ├── urls.py # URL routing
+│ └── pycache/
 │
-├── templates/              # HTML frontend templates
-│   ├── chat.html           # Chat interface
-│   ├── index.html          # Home/dashboard page
-│   └── login.html          # Login UI
+├── templates/ # Frontend templates
+│ ├── chat.html # Chat interface
+│ ├── index.html # Dashboard
+│ └── login.html # Login UI
 │
-├── media/                  # User-uploaded documents and files
-├── .gitignore              # Git ignored files
-├── requirements.txt        # Python package dependencies
-└── README.md               # Project documentation (this file)
-
+├── media/ # User-uploaded files
+├── .gitignore
+├── requirements.txt # Python dependencies
+└── README.md # Documentation
 ---
 
 ## 1. Clone the project repository
