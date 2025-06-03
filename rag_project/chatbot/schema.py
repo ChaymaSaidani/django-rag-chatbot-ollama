@@ -1,5 +1,7 @@
 import graphene
 from graphene_django import DjangoObjectType
+
+from chatbot.tasks import generate_chat_response
 from .models import Document, ChatSession, ChatMessage
 
 
@@ -59,9 +61,39 @@ class CreateDocument(graphene.Mutation):
        
         document = Document.objects.create(title=title, owner=user)
         return CreateDocument(document=document)
+    
+class CreateChatMessage(graphene.Mutation):
+    class Arguments:
+        session_id = graphene.Int(required=True)
+        message = graphene.String(required=True)
+
+    chat_message = graphene.Field(ChatMessageType)
+
+    def mutate(self, info, session_id, message):
+        user = info.context.user
+        if not user.is_authenticated:
+            raise Exception("Authentication required")
+
+        try:
+            session = ChatSession.objects.get(id=session_id, user=user)
+        except ChatSession.DoesNotExist:
+            raise Exception("Chat session not found")
+
+        
+        chat_message = ChatMessage.objects.create(
+            session=session,
+            message=message,
+            is_user=True
+        )
+
+        
+        generate_chat_response.delay(session_id, chat_message.id)
+
+        return CreateChatMessage(chat_message=chat_message)
 
 class Mutation(graphene.ObjectType):
     create_document = CreateDocument.Field()
+    create_chat_message = CreateChatMessage.Field()
 
 
 schema = graphene.Schema(query=Query, mutation=Mutation)
