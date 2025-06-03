@@ -7,7 +7,8 @@
 Welcome! This guide will help you get the **Django RAG Chatbot** project up and running from scratch — no matter your experience level. Follow each step carefully.
 
 ---
-## Project Structure
+# Project Structure
+
 rag_project/
 │
 ├── chatbot/                # Django app for chatbot logic
