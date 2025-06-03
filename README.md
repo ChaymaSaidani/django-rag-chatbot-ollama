@@ -10,35 +10,35 @@ Welcome! This guide will help you get the **Django RAG Chatbot** project up and 
 ## Project Structure
 rag_project/
 │
-├── chatbot/ # Django app
-│ ├── init.py
-│ ├── admin.py # Admin configurations
-│ ├── apps.py
-│ ├── models.py # Database models
-│ ├── schema.py # GraphQL schema
-│ ├── serializers.py # DRF serializers
-│ ├── tasks.py # Celery tasks (RAG processing)
-│ ├── views.py # API views
-│ └── pycache/
+├── chatbot/                # Django app for chatbot logic
+│   ├── __init__.py
+│   ├── admin.py            # Admin site configuration
+│   ├── apps.py
+│   ├── models.py           # Database models for documents, chats, etc.
+│   ├── schema.py           # GraphQL schema definitions
+│   ├── serializers.py      # DRF serializers for API endpoints
+│   ├── tasks.py            # Celery background tasks (e.g. RAG processing)
+│   ├── views.py            # Django REST API views
+│   └── __pycache__/
 │
-├── faiss_indices/ # FAISS vector stores
-│ └── doc_*.index # Auto-generated index files
+├── faiss_indices/          # FAISS vector index directory
+│   └── doc_*.index         # Auto-generated FAISS index files
 │
-├── rag_project/ # Project config
-│ ├── init.py
-│ ├── celery.py # Celery configuration
-│ ├── settings.py # Django settings
-│ └── urls.py # URL routing
+├── rag_project/            # Django project configuration
+│   ├── __init__.py
+│   ├── celery.py           # Celery app setup
+│   ├── settings.py         # Project settings (OpenAI, Redis, FAISS, etc.)
+│   └── urls.py             # URL routing
 │
-├── templates/ # Frontend templates
-│ ├── chat.html # Chat interface
-│ ├── index.html # Main dashboard
-│ └── login.html # Login page
+├── templates/              # HTML frontend templates
+│   ├── chat.html           # Chat interface
+│   ├── index.html          # Home/dashboard page
+│   └── login.html          # Login UI
 │
-├── media/ # Uploaded documents
-├── .gitignore
-├── requirements.txt # Python dependencies
-└── README.md # This file
+├── media/                  # User-uploaded documents and files
+├── .gitignore              # Git ignored files
+├── requirements.txt        # Python package dependencies
+└── README.md               # Project documentation (this file)
 
 ---
 
